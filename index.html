@@ -19,12 +19,20 @@
             color: #2c3e50;
             font-size: 1.8em;
             font-family: 'Fira Code', monospace;
+            text-transform: none;
+        }
+        .reveal h3 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 1.5em;
+            font-family: 'Fira Code', monospace;
+            text-transform: none;
         }
         .reveal p {
             font-size: 1em;
             line-height: 1.4;
         }
-        .demo-button {
+        .reveal a {
             display: inline-block;
             padding: 12px 24px;
             background-color: #3498db;
@@ -33,11 +41,13 @@
             border-radius: 6px;
             font-weight: 500;
             transition: background-color 0.3s;
-            margin-top: 40px;
             border: none;
-            align-self: center;
+            position: absolute;
+            bottom: 60px;
+            right: 60px;
+            z-index: 100;
         }
-        .demo-button:hover {
+        .reveal a:hover {
             background-color: #2980b9;
         }
         .slide-content {
@@ -45,212 +55,64 @@
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            min-height: 400px;
+            height: 100%;
             justify-content: space-between;
+            padding: 20px 0;
         }
         .reveal ul {
             font-size: 0.9em;
-        }
-        .slide-content ul {
             margin-bottom: 20px;
+        }
+        .reveal .slides section {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0;
+        }
+        .reveal .slides section .slide-content {
+            min-height: 0;
+            flex: 1;
+        }
+        /* Fix overview mode */
+        .reveal.overview .slides section {
+            height: auto !important;
+            min-height: initial !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .reveal.overview .slides section .slide-content {
+            height: auto !important;
+            min-height: initial !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            justify-content: flex-start !important;
+        }
+        .reveal.overview .slides section.present {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .reveal.overview .slides section.present .slide-content {
+            margin: 0 !important;
+            padding: 0 !important;
         }
     </style>
 </head>
 <body>
     <div class="reveal">
         <div class="slides">
-            <!-- Title Slide -->
-            <section>
-                <h1>Neural Network Visualizations</h1>
-                <div class="slide-content">
-                    <ul>
-                        <li>Interactive visualizations for building intuition around WHY neural networks work from an "origami" angle</li>
-                        <li>Explore the following demos to understand how neural networks transform and process information</li>
-                        <li>[Add more key points here]</li>
-                    </ul>
-                </div>
-            </section>
-
-            <!-- 1 input and 1 output section -->
-            <section>
-                <section>
-                    <h2>ReLU Activation Function</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Understanding the fundamental building block of neural networks</li>
-                            <li>How ReLU transforms input data</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/00-relu.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Multiple ReLU Units</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>How multiple ReLU units work together</li>
-                            <li>Creating more complex transformations</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/01-2relus.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Four ReLU Units</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Power of four ReLU units in parallel</li>
-                            <li>Increased transformation capabilities</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/02-4relus.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Single Layer Networks</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>How single-layer networks transform input</li>
-                            <li>Basic network architecture</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/03-nn1x4.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Larger Single Layer</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Impact of increasing neurons</li>
-                            <li>Enhanced network capabilities</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/04-nn1x12.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Two-Layer Networks</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Power of depth in networks</li>
-                            <li>Layer interactions</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/05-nn2x6.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Complex Architectures</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Multiple layer interactions</li>
-                            <li>Complex transformations</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/06-nn4x3.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>6x2 Network</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>6 neurons in first layer</li>
-                            <li>2 neurons in second layer</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/07-nn6x2.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-            </section>
-
-            <!-- 2 inputs and 1 output section -->
-            <section>
-                <section>
-                    <h2>2D Input Processing</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Processing 2D input data</li>
-                            <li>Visual representation</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/08-input2d-nn2x6.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>2D Input with 4x3 Network</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>4x3 network transformations</li>
-                            <li>2D data processing</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/09-input2d-nn4x3.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Single Transformer</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Basic transformer architecture</li>
-                            <li>Single block functionality</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/10-input2d-transformer1.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Multiple Transformers</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Multiple transformer blocks</li>
-                            <li>Block interactions</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/11-input2d-transformer4.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-            </section>
-
-            <!-- Autoregressive 3D outputs section -->
-            <section>
-                <section>
-                    <h2>3D Autoregressive Model</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>3D space modeling</li>
-                            <li>Autoregressive behavior</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/12-autoregressive3d.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
-
-                <section>
-                    <h2>Stochastic Autoregressive Model</h2>
-                    <div class="slide-content">
-                        <ul>
-                            <li>Stochastic behavior</li>
-                            <li>Randomness in models</li>
-                            <li>[Add more key points here]</li>
-                        </ul>
-                        <a href="viz/13-stochastic-autoregressive3d.html" class="demo-button" target="_blank">Play</a>
-                    </div>
-                </section>
+            <section data-markdown="slides.md"
+                     data-separator="^---"
+                     data-separator-vertical="^--"
+                     data-separator-notes="^Note:"
+                     data-charset="utf-8">
             </section>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/markdown/markdown.js"></script>
     <script>
         Reveal.initialize({
             hash: true,
@@ -260,7 +122,23 @@
             height: 800,
             mouseWheel: true,
             scrollPastViewport: false,
-            overview: true
+            overview: true,
+            plugins: [ RevealMarkdown ],
+            markdown: {
+                smartypants: true,
+                breaks: true,
+                gfm: true
+            },
+            viewDistance: 1,
+            autoPlayMedia: true,
+            autoSlide: 0,
+            autoSlideStoppable: true,
+            fitToView: true,
+            height: '100%',
+            width: '100%',
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 1.5
         });
     </script>
 </body>
