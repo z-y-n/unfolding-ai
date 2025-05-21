@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Visualizations</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .reveal {
+            font-family: 'Fira Code', monospace;
+        }
+        .reveal .slides {
+            text-align: left;
+        }
+        .reveal h1, .reveal h2 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 1.8em;
+            font-family: 'Fira Code', monospace;
+        }
+        .reveal p {
+            font-size: 1em;
+            line-height: 1.4;
+        }
+        .demo-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            margin-top: 40px;
+            border: none;
+            align-self: center;
+        }
+        .demo-button:hover {
+            background-color: #2980b9;
+        }
+        .slide-content {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+            justify-content: space-between;
+        }
+        .reveal ul {
+            font-size: 0.9em;
+        }
+        .slide-content ul {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Title Slide -->
+            <section>
+                <h1>Neural Network Visualizations</h1>
+                <div class="slide-content">
+                    <ul>
+                        <li>Interactive visualizations for building intuition around WHY neural networks work from an "origami" angle</li>
+                        <li>Explore the following demos to understand how neural networks transform and process information</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ReLU Visualizations -->
+            <section>
+                <h2>ReLU Activation Function</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Understanding the fundamental building block of neural networks</li>
+                        <li>How ReLU transforms input data</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/00-relu.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Multiple ReLU Units</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>How multiple ReLU units work together</li>
+                        <li>Creating more complex transformations</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/01-2relus.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Four ReLU Units</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Power of four ReLU units in parallel</li>
+                        <li>Increased transformation capabilities</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/02-4relus.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <!-- Neural Network Architectures -->
+            <section>
+                <h2>Single Layer Networks</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>How single-layer networks transform input</li>
+                        <li>Basic network architecture</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/03-nn1x4.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Larger Single Layer</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Impact of increasing neurons</li>
+                        <li>Enhanced network capabilities</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/04-nn1x12.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Two-Layer Networks</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Power of depth in networks</li>
+                        <li>Layer interactions</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/05-nn2x6.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Complex Architectures</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Multiple layer interactions</li>
+                        <li>Complex transformations</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/06-nn4x3.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>6x2 Network</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>6 neurons in first layer</li>
+                        <li>2 neurons in second layer</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/07-nn6x2.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <!-- 2D Input Visualizations -->
+            <section>
+                <h2>2D Input Processing</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Processing 2D input data</li>
+                        <li>Visual representation</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/08-input2d-nn2x6.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>2D Input with 4x3 Network</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>4x3 network transformations</li>
+                        <li>2D data processing</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/09-input2d-nn4x3.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <!-- Transformer Visualizations -->
+            <section>
+                <h2>Single Transformer</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Basic transformer architecture</li>
+                        <li>Single block functionality</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/10-input2d-transformer1.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Multiple Transformers</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Multiple transformer blocks</li>
+                        <li>Block interactions</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/11-input2d-transformer4.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <!-- Autoregressive Models -->
+            <section>
+                <h2>3D Autoregressive Model</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>3D space modeling</li>
+                        <li>Autoregressive behavior</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/12-autoregressive3d.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+
+            <section>
+                <h2>Stochastic Autoregressive Model</h2>
+                <div class="slide-content">
+                    <ul>
+                        <li>Stochastic behavior</li>
+                        <li>Randomness in models</li>
+                        <li>[Add more key points here]</li>
+                    </ul>
+                    <a href="viz/13-stochastic-autoregressive3d.html" class="demo-button" target="_blank">Play</a>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            center: false,
+            transition: 'slide',
+            width: 1200,
+            height: 800,
+            mouseWheel: true,
+            scrollPastViewport: false,
+            overview: true
+        });
+    </script>
+</body>
+</html> 
