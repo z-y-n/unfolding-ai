@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autoregressive GPT Sampling Curve (2 Blocks)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: sans-serif; margin: 0; background-color: #f0f0f0;
+            display: flex; justify-content: center; padding: 10px; height: 100vh;
+            box-sizing: border-box;
+        }
+        .main-container { display: flex; flex-direction: row; gap: 15px; width: 100%; max-width: 1400px; height: calc(100% - 20px); }
+        /* Container for 3D plot */
+        .chart-area-container {
+             flex: 3; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+             background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+             padding: 10px;
+        }
+        #plotTitle { /* Title above plot */
+             font-size: 16px; font-weight: bold; color: #333; text-anchor: middle; text-align: center; padding-bottom: 5px; flex-shrink: 0;
+        }
+        #plot3d { /* Container for the canvas */
+            flex-grow: 1; /* Take remaining space */
+            min-height: 0; /* Crucial for flex-grow */
+            position: relative; /* Needed for canvas absolute positioning */
+            overflow: hidden; /* Clip canvas if needed */
+            border-radius: 4px;
+        }
+        #plot3d canvas {
+             display: block; /* Remove extra space below canvas */
+             position: absolute;
+             top: 0; left: 0; width: 100%; height: 100%;
+        }
+
+        /* Controls Panel Styling */
+        .controls {
+            display: flex; flex-direction: column; gap: 10px; padding: 10px; background-color: #e9ecef;
+            border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex: 1; min-width: 250px;
+            max-width: 380px; /* Wider panel for more sliders */
+            overflow-y: hidden; max-height: 100%;
+        }
+        /* Style for the steps control section */
+        .steps-control {
+            display: grid;
+            grid-template-columns: auto 1fr auto; /* Label, Slider, Value */
+            gap: 8px;
+            align-items: center;
+            padding-bottom: 10px; /* Space before randomize button */
+            border-bottom: 1px solid #ccc; /* Separator */
+            margin-bottom: 10px; /* Space after separator */
+            flex-shrink: 0;
+        }
+        .steps-control label {
+             font-weight: bold; font-size: 0.9em; justify-self: start;
+             grid-column: 1 / 2;
+        }
+         .steps-control input[type="range"] {
+             width: 100%; cursor: pointer; margin: 0;
+             grid-column: 2 / 3;
+        }
+        .steps-control .slider-value {
+            font-weight: bold; min-width: 35px; text-align: right; font-family: monospace;
+            background-color: #fff; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 0.8em;
+            grid-column: 3 / 4;
+        }
+
+        #randomizeButton {
+            padding: 8px 12px; background-color: #0d6efd; color: white; border: none; border-radius: 5px;
+            cursor: pointer; font-weight: bold; transition: background-color 0.2s; flex-shrink: 0;
+        }
+        #randomizeButton:hover { background-color: #0b5ed7; }
+        /* Grid for parameter sliders */
+        .slider-grid {
+             display: grid; grid-template-columns: auto 1fr auto; gap: 5px 8px; /* Reduced vertical gap */
+             align-items: center; align-content: start; overflow-y: auto; flex-grow: 1;
+             padding-right: 5px;
+             min-height: 0;
+        }
+        .separator { grid-column: 1 / -1; height: 1px; background-color: #ccc; margin: 8px 0; font-size: 0.8em; text-align: center; color: #555; padding-top: 5px; border-top: 1px solid #ddd;}
+        /* Smaller font for labels */
+        .slider-grid label { font-weight: bold; justify-self: end; font-size: 0.75em; font-family: monospace; padding-right: 4px;}
+        .slider-grid input[type="range"] { width: 100%; cursor: pointer; margin: 0; }
+        .slider-grid .slider-value {
+            font-weight: bold; min-width: 40px; text-align: right; font-family: monospace;
+            background-color: #fff; padding: 1px 3px; border-radius: 3px; border: 1px solid #ccc;
+            font-size: 0.75em; /* Smaller font */
+        }
+        .description {
+            /* font-family: 'Fira Code', monospace; */
+            font-size: 20px;
+            color: #333;
+            /* text-align: center; */
+            padding: 20px;
+            background-color: #d4d1d1a8;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 1300px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="chart-area-container">
+        <div id="plotTitle">Autoregressive GPT Sampling Curve (3D embedding, 2 Blocks)</div>
+        <div id="plot3d"></div>
+        <div class="description">Generating text is like traversing a curve on an origami piece.</div>
+        </div>
+    <div class="controls">
+        <div class="steps-control">
+            <label for="stepsSlider">Num Steps:</label>
+            <input type="range" id="stepsSlider" name="stepsSlider" min="5" max="100" step="1" value="50">
+            <span id="stepsValue" class="slider-value">50</span>
+        </div>
+        <button id="randomizeButton" type="button">Randomize Params</button>
+        <div class="slider-grid">
+             </div>
+    </div>
+</div>
+
+<script>
+    // === Transformer/Viz Code ===
+    console.log("Script start");
+
+    // --- Transformer Architecture Constants ---
+    const NUM_TRANSFORMER_BLOCKS = 2; // *** UPDATED to 2 blocks ***
+    const D_MODEL = 3;
+    const D_FF = 2;
+    const NUM_HEADS = 1;
+    const D_K = D_MODEL / NUM_HEADS;
+
+    // --- Helper Functions ---
+    function uniformRandom(min, max) { return Math.random() * (max - min) + min; }
+    function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
+
+    // --- Vector/Matrix Math Helpers ---
+    function vecAdd(v1, v2) { if (!v1 || !v2 || v1.length !== v2.length) { console.error("Vector add mismatch", v1, v2); return v1; } return v1.map((val, i) => val + v2[i]); }
+    function vecSub(v1, v2) { if (!v1 || !v2 || v1.length !== v2.length) { console.error("Vector sub mismatch", v1, v2); return v1; } return v1.map((val, i) => val - v2[i]); }
+    function vecScale(v, s) { if (!v) { console.error("Vector scale undefined vector"); return []; } return v.map(val => val * s); }
+    function matVecMul(matrix, vector, rows, cols) { if (!matrix || !vector || matrix.length !== rows * cols || vector.length !== cols) { console.error("matVecMul mismatch", matrix, vector, rows, cols); return Array(rows).fill(0); } const result = Array(rows).fill(0); for (let i = 0; i < rows; i++) { for (let j = 0; j < cols; j++) { result[i] += matrix[i * cols + j] * vector[j]; } } return result; }
+    function matMatMul(matA, matB, rowsA, colsA, colsB) { if (!matA || !matB || matA.length !== rowsA * colsA || matB.length !== colsA * colsB) { console.error("matMatMul mismatch", matA, matB, rowsA, colsA, colsB); return Array(rowsA * colsB).fill(0); } const result = Array(rowsA * colsB).fill(0); for (let i = 0; i < rowsA; i++) { for (let j = 0; j < colsB; j++) { let sum = 0; for (let k = 0; k < colsA; k++) { sum += matA[i * colsA + k] * matB[k * colsB + j]; } result[i * colsB + j] = sum; } } return result; }
+    function transpose(matrix, rows, cols) { if (!matrix || matrix.length !== rows * cols) { console.error("transpose mismatch", matrix, rows, cols); return Array(rows * cols).fill(0); } const result = Array(rows * cols).fill(0); for (let i = 0; i < rows; i++) { for (let j = 0; j < cols; j++) { result[j * rows + i] = matrix[i * cols + j]; } } return result; }
+    function softmaxMatrixRows(matrix, rows, cols) { if (!matrix || matrix.length !== rows * cols) { console.error("softmaxMatrixRows mismatch", matrix, rows, cols); return Array(rows * cols).fill(0); } const result = Array(rows * cols).fill(0); for (let i = 0; i < rows; i++) { const row = matrix.slice(i * cols, (i + 1) * cols); const maxVal = row.length > 0 ? Math.max(...row) : 0; const exps = row.map(x => Math.exp(x - maxVal)); const sumExps = exps.reduce((sum, val) => sum + val, 0); const normalizedRow = sumExps === 0 ? row.map(() => 1 / cols) : exps.map(e => e / sumExps); for (let j = 0; j < cols; j++) { result[i * cols + j] = normalizedRow[j]; } } return result; }
+
+    // --- Positional Encoding ---
+    function getPositionalEncoding(pos, dModel = D_MODEL, maxLen = 1000) { const pe = Array(dModel).fill(0); const divTermBase = 10000; for (let i = 0; i < dModel; i++) { const divTerm = Math.pow(divTermBase, (2 * Math.floor(i / 2)) / dModel); pe[i] = (i % 2 === 0) ? Math.sin(pos / divTerm) : Math.cos(pos / divTerm); } return pe; }
+
+    // Function to create a circular texture
+    function createCircleTexture() { const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64; const context = canvas.getContext('2d'); const centerX = canvas.width / 2; const centerY = canvas.height / 2; const radius = canvas.width / 2 - 2; context.beginPath(); context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false); context.fillStyle = 'rgba(255, 255, 255, 1)'; context.fill(); const texture = new THREE.CanvasTexture(canvas); texture.needsUpdate = true; return texture; }
+
+    // --- Parameter and Slider Setup ---
+    const controlsContainer = d3.select(".controls");
+    const sliderGrid = controlsContainer.select(".slider-grid");
+    const sliderParams = [];
+    const paramValues = { initialP0: [0, 0, 0], cls: [0, 0, 0], blocks: [] }; // Initialize blocks array
+    // Initialize block parameter structures for NUM_TRANSFORMER_BLOCKS
+    for (let i = 0; i < NUM_TRANSFORMER_BLOCKS; i++) {
+        paramValues.blocks.push({
+            msha: { wq: [], bq: [], wk: [], bk: [], wv: [], bv: [], wo: [], bo: [] },
+            ffn: { w1: [], b1: [], w2: [], b2: [] }
+        });
+    }
+
+    const wMin = -1, wMax = 1; const bMin = -1, bMax = 1; const p0Min = -5, p0Max = 5;
+
+    function createSlider(paramDef) { /* ... (no changes) ... */ sliderParams.push(paramDef); const label = sliderGrid.append("label").attr("for", paramDef.id).text(paramDef.label + ":").attr('class', 'param-label'); const slider = sliderGrid.append("input").attr("type", "range").attr("id", paramDef.id).attr("name", paramDef.id).attr("min", paramDef.min).attr("max", paramDef.max).attr("step", paramDef.step).attr("value", paramDef.value).attr('class', 'param-slider'); const valueDisplay = sliderGrid.append("span").attr("id", `${paramDef.id}Value`).attr("class", "slider-value param-value").text(parseFloat(paramDef.value).toFixed(2)); slider.on("input", handleSliderInput); }
+
+    function setupParameters() {
+        console.log("Setting up parameters...");
+        sliderGrid.html('');
+        sliderParams.length = 0;
+        paramValues.blocks = []; // Clear block parameters before regenerating
+
+        // Initial Point (p0) Sliders
+        sliderGrid.append('div').attr('class', 'separator').text(`Initial Point (p0)`);
+        const p0Labels = ['p0_x', 'p0_y', 'p0_z'];
+        for (let i = 0; i < 3; i++) { const initialVal = uniformRandom(p0Min, p0Max); paramValues.initialP0[i] = initialVal; createSlider({ type: 'p0', idx: i, id: `P0_${i}`, label: p0Labels[i], min: p0Min, max: p0Max, step: 0.1, value: initialVal }); }
+
+        // Initial CLS Token Sliders
+        sliderGrid.append('div').attr('class', 'separator').text(`Initial CLS Token`);
+        const clsLabels = ['CLS_0', 'CLS_1', 'CLS_2'];
+        for (let i = 0; i < D_MODEL; i++) { const initialVal = uniformRandom(bMin, bMax); paramValues.cls[i] = initialVal; createSlider({ type: 'cls', idx: i, id: `CLS_${i}`, label: clsLabels[i], min: bMin, max: bMax, step: 0.1, value: initialVal }); }
+
+        // *** Loop through each block to create parameters ***
+        for (let blockIdx = 0; blockIdx < NUM_TRANSFORMER_BLOCKS; blockIdx++) {
+            // Initialize parameter structure for this block
+             paramValues.blocks.push({
+                msha: { wq: [], bq: [], wk: [], bk: [], wv: [], bv: [], wo: [], bo: [] },
+                ffn: { w1: [], b1: [], w2: [], b2: [] }
+            });
+
+            sliderGrid.append('div').attr('class', 'separator').text(`Block ${blockIdx}`);
+
+            // MHSA Parameters
+            sliderGrid.append('div').attr('class', 'separator').style('font-size', '0.7em').style('color', '#777').text(`Block ${blockIdx} - Attention`);
+            const mshaParamDefs = [ { key: 'wq', rows: D_MODEL, cols: D_K, label: 'Wq', isBias: false }, { key: 'bq', size: D_K, label: 'bq', isBias: true }, { key: 'wk', rows: D_MODEL, cols: D_K, label: 'Wk', isBias: false }, { key: 'bk', size: D_K, label: 'bk', isBias: true }, { key: 'wv', rows: D_MODEL, cols: D_K, label: 'Wv', isBias: false }, { key: 'bv', size: D_K, label: 'bv', isBias: true }, { key: 'wo', rows: D_MODEL, cols: D_K * NUM_HEADS, label: 'Wo', isBias: false }, { key: 'bo', size: D_MODEL, label: 'bo', isBias: true }, ];
+            mshaParamDefs.forEach(p => { const min = p.isBias ? bMin : wMin; const max = p.isBias ? bMax : wMax; if (p.rows !== undefined) { paramValues.blocks[blockIdx].msha[p.key] = []; for (let r = 0; r < p.rows; r++) { for (let c = 0; c < p.cols; c++) { const initialVal = uniformRandom(min, max); paramValues.blocks[blockIdx].msha[p.key].push(initialVal); createSlider({ type: 'mshaW', blockIdx: blockIdx, key: p.key, row: r, col: c, rows: p.rows, cols: p.cols, id: `B${blockIdx}_MHSA_${p.label}_${r}${c}`, label: `B${blockIdx}A_${p.label}${r}${c}`, min: min, max: max, step: 0.05, value: initialVal }); } } } else { paramValues.blocks[blockIdx].msha[p.key] = []; for (let i = 0; i < p.size; i++) { const initialVal = uniformRandom(min, max); paramValues.blocks[blockIdx].msha[p.key].push(initialVal); createSlider({ type: 'mshaB', blockIdx: blockIdx, key: p.key, idx: i, id: `B${blockIdx}_MHSA_${p.label}_${i}`, label: `B${blockIdx}A_${p.label}${i}`, min: min, max: max, step: 0.05, value: initialVal }); } } });
+
+            // FFN Parameters
+            sliderGrid.append('div').attr('class', 'separator').style('font-size', '0.7em').style('color', '#777').text(`Block ${blockIdx} - Feed-Forward`);
+            paramValues.blocks[blockIdx].ffn.w1 = []; for(let r=0; r<D_FF; r++) { for(let c=0; c<D_MODEL; c++) { const initialVal = uniformRandom(wMin, wMax); paramValues.blocks[blockIdx].ffn.w1.push(initialVal); createSlider({ type: 'ffnW', blockIdx: blockIdx, layer: 1, row: r, col: c, rows: D_FF, cols: D_MODEL, id: `B${blockIdx}_FFN1_W_${r}${c}`, label: `B${blockIdx}F1_W${r}${c}`, min: wMin, max: wMax, step: 0.05, value: initialVal }); }}
+            paramValues.blocks[blockIdx].ffn.b1 = []; for(let i=0; i<D_FF; i++) { const initialVal = uniformRandom(bMin, bMax); paramValues.blocks[blockIdx].ffn.b1.push(initialVal); createSlider({ type: 'ffnB', blockIdx: blockIdx, layer: 1, idx: i, id: `B${blockIdx}_FFN1_B${i}`, label: `B${blockIdx}F1_b${i}`, min: bMin, max: bMax, step: 0.05, value: initialVal }); }
+            paramValues.blocks[blockIdx].ffn.w2 = []; for(let r=0; r<D_MODEL; r++) { for(let c=0; c<D_FF; c++) { const initialVal = uniformRandom(wMin, wMax); paramValues.blocks[blockIdx].ffn.w2.push(initialVal); createSlider({ type: 'ffnW', blockIdx: blockIdx, layer: 2, row: r, col: c, rows: D_MODEL, cols: D_FF, id: `B${blockIdx}_FFN2_W_${r}${c}`, label: `B${blockIdx}F2_W${r}${c}`, min: wMin, max: wMax, step: 0.05, value: initialVal }); }}
+            paramValues.blocks[blockIdx].ffn.b2 = []; for(let i=0; i<D_MODEL; i++) { const initialVal = uniformRandom(bMin, bMax); paramValues.blocks[blockIdx].ffn.b2.push(initialVal); createSlider({ type: 'ffnB', blockIdx: blockIdx, layer: 2, idx: i, id: `B${blockIdx}_FFN2_B${i}`, label: `B${blockIdx}F2_b${i}`, min: bMin, max: bMax, step: 0.05, value: initialVal }); }
+        } // End loop over blocks
+        console.log("Parameter setup complete.");
+    }
+
+
+    // --- three.js Setup ---
+    let scene, camera, renderer, controls;
+    let curveObject, curveMaterial, curveGeometry;
+    let curvePointsObject, curvePointsMaterial;
+    let initialPointObject, initialPointGeometry, initialPointMaterial;
+    let finalPointObject, finalPointGeometry, finalPointMaterial;
+    const plotContainer = document.getElementById('plot3d');
+    const plotBounds = { min: -10, max: 10 };
+    let numSteps = 50;
+
+    function init3D() { /* ... (no changes except materials sizes/opacity) ... */ console.log("Initializing 3D..."); try { scene = new THREE.Scene(); scene.background = new THREE.Color(0xffffff); const containerWidth = plotContainer.clientWidth || 1; const containerHeight = plotContainer.clientHeight || 1; const aspectRatio = containerWidth / containerHeight; camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000); camera.position.set(plotBounds.max * 0.8, plotBounds.max * 0.6, plotBounds.max * 1.5); camera.lookAt(0, 0, 0); renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(containerWidth, containerHeight); plotContainer.appendChild(renderer.domElement); const circleTexture = createCircleTexture(); curveMaterial = new THREE.LineBasicMaterial({ color: 0x888888, linewidth: 2, transparent: true, opacity: 0.6 }); curvePointsMaterial = new THREE.PointsMaterial({ color: 0x0000ff, map: circleTexture, size: 0.3, transparent: true, opacity: 0.5, sizeAttenuation: true, alphaTest: 0.5 }); initialPointMaterial = new THREE.PointsMaterial({ color: 0x00ff00, map: circleTexture, size: 0.4, transparent: true, opacity: 0.5, sizeAttenuation: true, alphaTest: 0.5 }); finalPointMaterial = new THREE.PointsMaterial({ color: 0xff0000, map: circleTexture, size: 0.4, transparent: true, opacity: 0.5, sizeAttenuation: true, alphaTest: 0.5 }); const ambientLight = new THREE.AmbientLight(0xcccccc, 0.8); scene.add(ambientLight); const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6); directionalLight.position.set(1, 1, 0.5).normalize(); scene.add(directionalLight); const axesSize = plotBounds.max * 1.1; const axesHelper = new THREE.AxesHelper(axesSize); scene.add(axesHelper); controls = new THREE.OrbitControls(camera, renderer.domElement); controls.target.set(0, 0, 0); controls.update(); setupParameters(); createOrUpdateCurve(); window.addEventListener('resize', onWindowResize, false); const stepsSlider = d3.select('#stepsSlider'); const stepsValueDisplay = d3.select('#stepsValue'); stepsSlider.property('value', numSteps); stepsValueDisplay.text(numSteps); stepsSlider.on('input', handleStepsChange); animate(); console.log("3D Initialization complete."); } catch (error) { console.error("Error during 3D initialization:", error); } }
+
+    // --- Function to Create or Update Curve Objects ---
+    function createOrUpdateCurve() { /* ... (no changes) ... */ try { const points = calculateCurvePoints(paramValues, numSteps); if (!points || points.length === 0) { if (curveObject) scene.remove(curveObject); if (curvePointsObject) scene.remove(curvePointsObject); if (initialPointObject) scene.remove(initialPointObject); if (finalPointObject) scene.remove(finalPointObject); curveObject = null; curveGeometry = null; curvePointsObject = null; initialPointObject = null; initialPointGeometry = null; finalPointObject = null; finalPointGeometry = null; return; } const vertices = points.map(p => new THREE.Vector3(p[0], p[1], p[2])); if (!curveGeometry) curveGeometry = new THREE.BufferGeometry(); curveGeometry.setFromPoints(vertices); if (!curveObject) { curveObject = new THREE.Line(curveGeometry, curveMaterial); scene.add(curveObject); } if (!curvePointsObject) { curvePointsObject = new THREE.Points(curveGeometry, curvePointsMaterial); scene.add(curvePointsObject); } else { curvePointsObject.geometry = curveGeometry; } if (vertices.length > 0) { const firstVertex = [vertices[0]]; if (!initialPointGeometry) initialPointGeometry = new THREE.BufferGeometry(); initialPointGeometry.setFromPoints(firstVertex); if (!initialPointObject) { initialPointObject = new THREE.Points(initialPointGeometry, initialPointMaterial); scene.add(initialPointObject); } initialPointGeometry.computeBoundingSphere(); } else if (initialPointObject) { scene.remove(initialPointObject); initialPointObject.geometry.dispose(); initialPointObject = null; initialPointGeometry = null; } if (vertices.length > 1) { const lastVertex = [vertices[vertices.length - 1]]; if (!finalPointGeometry) finalPointGeometry = new THREE.BufferGeometry(); finalPointGeometry.setFromPoints(lastVertex); if (!finalPointObject) { finalPointObject = new THREE.Points(finalPointGeometry, finalPointMaterial); scene.add(finalPointObject); } finalPointGeometry.computeBoundingSphere(); } else if (finalPointObject) { scene.remove(finalPointObject); finalPointObject.geometry.dispose(); finalPointObject = null; finalPointGeometry = null; } curveGeometry.computeBoundingSphere(); } catch (error) { console.error("Error during createOrUpdateCurve:", error); } }
+
+
+    function onWindowResize() { /* ... (no changes) ... */ if (!plotContainer || !camera || !renderer) return; const containerWidth = plotContainer.clientWidth || 1; const containerHeight = plotContainer.clientHeight || 1; camera.aspect = containerWidth / containerHeight; camera.updateProjectionMatrix(); renderer.setSize(containerWidth, containerHeight); }
+    function animate() { /* ... (no changes) ... */ requestAnimationFrame(animate); if (controls) controls.update(); if (renderer && scene && camera) renderer.render(scene, camera); }
+
+    // --- Transformer Calculation for Autoregressive Curve ---
+    function calculateCurvePoints(params, steps) {
+        // Readiness check now includes checking for block 1 existence
+        if (!params || !params.blocks || params.blocks.length !== NUM_TRANSFORMER_BLOCKS ||
+            !params.blocks[0].msha.wq || params.blocks[0].msha.wq.length === 0 ||
+            !params.blocks[0].ffn.w1 || params.blocks[0].ffn.w1.length === 0 ||
+            !params.blocks[1]?.msha?.wq || params.blocks[1].msha.wq.length === 0 || // Check block 1
+            !params.blocks[1]?.ffn?.w1 || params.blocks[1].ffn.w1.length === 0)
+        {
+             // console.warn("Params not fully ready for calculation (2 blocks)");
+             return [];
+        }
+
+        let points = [params.initialP0.slice()];
+        let currentSequence = [params.cls.slice(), params.initialP0.slice()];
+
+        for (let step = 0; step < steps; step++) {
+            let vecsForNextStep = currentSequence.slice(); // Start with current sequence for this step
+
+            // *** Loop through Transformer Blocks ***
+            for (let blockIdx = 0; blockIdx < NUM_TRANSFORMER_BLOCKS; blockIdx++) {
+                 const blockParams = params.blocks[blockIdx];
+                 const currentSeqLen = vecsForNextStep.length;
+                 if (currentSeqLen === 0) break; // Should not happen
+
+                 // Add Positional Encoding for this block's input
+                 const blockInputWithPE = vecsForNextStep.map((vec, pos) => vecAdd(vec, getPositionalEncoding(pos, D_MODEL)));
+
+                 // MHSA
+                 const Q = blockInputWithPE.flatMap(vec => matVecMul(blockParams.msha.wq, vec, D_K, D_MODEL));
+                 const K = blockInputWithPE.flatMap(vec => matVecMul(blockParams.msha.wk, vec, D_K, D_MODEL));
+                 const V = blockInputWithPE.flatMap(vec => matVecMul(blockParams.msha.wv, vec, D_K, D_MODEL));
+                 const Q_b = Q.map((val, i) => val + blockParams.msha.bq[i % D_K]);
+                 const K_b = K.map((val, i) => val + blockParams.msha.bk[i % D_K]);
+                 const V_b = V.map((val, i) => val + blockParams.msha.bv[i % D_K]);
+                 const K_T = transpose(K_b, currentSeqLen, D_K);
+                 const attnScores = matMatMul(Q_b, K_T, currentSeqLen, D_K, currentSeqLen);
+                 const scaleFactor = Math.sqrt(D_K || 1);
+                 const scaledAttnScores = attnScores.map(score => score / scaleFactor);
+                 const attnWeights = softmaxMatrixRows(scaledAttnScores, currentSeqLen, currentSeqLen);
+                 const attnOutputFlat = matMatMul(attnWeights, V_b, currentSeqLen, currentSeqLen, D_K);
+                 const attnOutputVecs = [];
+                 for(let i=0; i<currentSeqLen; i++) { attnOutputVecs.push(attnOutputFlat.slice(i*D_K, (i+1)*D_K)); }
+                 const mshaResultVecs = attnOutputVecs.map(vec => vecAdd(matVecMul(blockParams.msha.wo, vec, D_MODEL, D_K), blockParams.msha.bo));
+
+                 // Add Residual 1
+                 const add1OutputVecs = blockInputWithPE.map((val, i) => vecAdd(val, mshaResultVecs[i]));
+
+                 // FFN
+                 const ffnResultVecs = add1OutputVecs.map(add1Vec => {
+                     const hidden = vecAdd(matVecMul(blockParams.ffn.w1, add1Vec, D_FF, D_MODEL), blockParams.ffn.b1);
+                     const output = vecAdd(matVecMul(blockParams.ffn.w2, hidden, D_MODEL, D_FF), blockParams.ffn.b2);
+                     return output;
+                 });
+
+                 // Add Residual 2
+                 const add2OutputVecs = add1OutputVecs.map((val, i) => vecAdd(val, ffnResultVecs[i]));
+
+                 // Output of this block becomes input for the next block (or final output)
+                 vecsForNextStep = add2OutputVecs;
+
+            } // End loop over blocks
+
+            // --- Autoregression ---
+            if (vecsForNextStep.length === 0) break;
+            const newPoint = vecsForNextStep[0].slice(); // Output is CLS token after ALL blocks
+            const clampedNewPoint = newPoint.map(v => clamp(v, plotBounds.min * 2, plotBounds.max * 2));
+            points.push(clampedNewPoint);
+            currentSequence.push(clampedNewPoint); // Add to sequence for next step
+        }
+        return points;
+    }
+
+    // --- Update Logic ---
+    function handleSliderInput() { /* ... (no changes) ... */ const paramDef = sliderParams.find(p => p.id === this.id); if (!paramDef) return; const value = +this.value; try { switch (paramDef.type) { case 'p0': paramValues.initialP0[paramDef.idx] = value; break; case 'cls': paramValues.cls[paramDef.idx] = value; break; case 'mshaW': const mshaWCols = paramDef.cols; paramValues.blocks[paramDef.blockIdx].msha[paramDef.key][paramDef.row * mshaWCols + paramDef.col] = value; break; case 'mshaB': paramValues.blocks[paramDef.blockIdx].msha[paramDef.key][paramDef.idx] = value; break; case 'ffnW': const ffnWLayer = paramDef.layer === 1 ? 'w1' : 'w2'; const ffnWCols = paramDef.cols; paramValues.blocks[paramDef.blockIdx].ffn[ffnWLayer][paramDef.row * ffnWCols + paramDef.col] = value; break; case 'ffnB': const ffnBLayer = paramDef.layer === 1 ? 'b1' : 'b2'; paramValues.blocks[paramDef.blockIdx].ffn[ffnBLayer][paramDef.idx] = value; break; default: console.error("Unknown param type:", paramDef.type); return; } d3.select(`#${paramDef.id}Value`).text(value.toFixed(2)); createOrUpdateCurve(); } catch (e) { console.error("Error updating parameters:", e, paramDef); } }
+    function handleStepsChange() { /* ... (no changes) ... */ const newValue = +d3.select(this).property("value"); numSteps = newValue; d3.select('#stepsValue').text(newValue); createOrUpdateCurve(); }
+    function randomizeParameters() { /* ... (no changes) ... */ console.log("Randomizing parameters..."); sliderParams.forEach(p => { let min, max; if (p.type === 'p0') { min = p0Min; max = p0Max; } else { min = p.label.includes('b') || p.label.includes('CLS') ? bMin : wMin; max = p.label.includes('b') || p.label.includes('CLS') ? bMax : wMax; } const newValue = uniformRandom(min, max); d3.select(`#${p.id}`).property('value', newValue); d3.select(`#${p.id}Value`).text(newValue.toFixed(2)); try { switch (p.type) { case 'p0': paramValues.initialP0[p.idx] = newValue; break; case 'cls': paramValues.cls[p.idx] = newValue; break; case 'mshaW': const mshaWCols = p.cols; paramValues.blocks[p.blockIdx].msha[p.key][p.row * mshaWCols + p.col] = newValue; break; case 'mshaB': paramValues.blocks[p.blockIdx].msha[p.key][p.idx] = newValue; break; case 'ffnW': const ffnWLayer = p.layer === 1 ? 'w1' : 'w2'; const ffnWCols = p.cols; paramValues.blocks[p.blockIdx].ffn[ffnWLayer][p.row * ffnWCols + p.col] = newValue; break; case 'ffnB': const ffnBLayer = p.layer === 1 ? 'b1' : 'b2'; paramValues.blocks[p.blockIdx].ffn[ffnBLayer][p.idx] = newValue; break; } } catch (e) { console.error("Error randomizing parameters:", e, p); } }); createOrUpdateCurve(); }
+
+    // Add button listener
+    d3.select('#randomizeButton').on('click', randomizeParameters);
+
+    // --- Initialize ---
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init3D); }
+    else { init3D(); }
+    console.log("Script end");
+
+</script>
+
+</body>
+</html>

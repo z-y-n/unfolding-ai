@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3 Plot: Single ReLU Neuron</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: sans-serif; margin-top: 10px; margin-bottom: 10px; background-color: #f9f9f9;
+            display: flex; justify-content: center; padding: 10px; height: calc(100vh - 40px);
+        }
+        .main-container { display: flex; flex-direction: row; gap: 20px; width: 95%; max-width: 1300px; height: 100%; }
+        .chart-area-container {
+             flex: 3; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+        }
+        .chart-container {
+            background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 10px; flex-grow: 1; min-height: 0;
+            display: flex; flex-direction: column;
+        }
+        #chart svg { display: block; width: 100%; height: 100%; max-width: 100%; }
+
+        .line { fill: none; stroke: #d63384; /* Pink line color */ stroke-width: 2.5px; }
+        .axis path, .axis line { fill: none; stroke: #ccc; stroke-width: 1px; shape-rendering: crispEdges; }
+        .grid-line { stroke: #eee; stroke-opacity: 0.7; shape-rendering: crispEdges; }
+        .axis text { font-size: 10px; fill: #555; }
+        .axis-label { font-size: 12px; fill: #333; }
+        .plot-title { font-size: 16px; font-weight: bold; fill: #333; text-anchor: middle; }
+        .controls {
+            display: flex; flex-direction: column; gap: 10px; padding: 10px; background-color: #e9ecef;
+            border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex: 1; min-width: 250px;
+            max-width: 320px; overflow-y: hidden; max-height: 100%;
+        }
+        #randomizeButton {
+            padding: 8px 12px; background-color: #0d6efd; color: white; border: none; border-radius: 5px;
+            cursor: pointer; font-weight: bold; transition: background-color 0.2s; flex-shrink: 0;
+        }
+        #randomizeButton:hover { background-color: #0b5ed7; }
+        .slider-grid {
+             display: grid; grid-template-columns: auto 1fr auto; gap: 10px 8px;
+             align-items: center; align-content: start; overflow-y: auto; flex-grow: 1;
+        }
+        label { font-weight: bold; justify-self: end; font-size: 0.9em; font-family: monospace; }
+        input[type="range"] { width: 100%; cursor: pointer; margin: 0; }
+        .slider-value {
+            font-weight: bold; min-width: 40px; text-align: right; font-family: monospace;
+            background-color: #fff; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 0.9em;
+        }
+        .description {
+            /* font-family: 'Fira Code', monospace; */
+            font-size: 20px;
+            color: #333;
+            /* text-align: center; */
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 1300px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="chart-area-container">
+        <div id="chart" class="chart-container"></div>
+        <div class="description">Foldable lines are the building blocks of neural networks.</div>
+        </div>
+    <div class="controls">
+        <button id="randomizeButton" type="button">Randomize Parameters</button>
+        <div class="slider-grid">
+             </div>
+    </div>
+</div>
+
+<script>
+    // === D3 Code ===
+
+    // --- Network Architecture ---
+    const NUM_NEURONS = 1; // Single transformation
+
+    // --- Helper Functions ---
+    function uniformRandom(min, max) { return Math.random() * (max - min) + min; }
+    function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
+
+    // --- Parameter and Slider Setup ---
+    const controlsContainer = d3.select(".controls");
+    const sliderGrid = controlsContainer.select(".slider-grid");
+    const sliderParams = []; // Definitions for 2 sliders
+    const paramValues = { w: [], b: [] }; // Simpler structure
+    const wMin = -5, wMax = 5;
+    const bMin = -10, bMax = 10;
+
+    // Define parameters and sliders for w0, b0
+    // *** UPDATED Initial weight (w0) to 1 ***
+    const initialW = 1;
+    const wParamDef = { neuron: 0, type: 'w', id: 'W0', label: 'w0', min: wMin, max: wMax, step: 0.1, value: initialW };
+    sliderParams.push(wParamDef);
+    paramValues.w[0] = initialW;
+
+    let label = sliderGrid.append("label").attr("for", wParamDef.id).text(wParamDef.label + ":");
+    let slider = sliderGrid.append("input").attr("type", "range").attr("id", wParamDef.id).attr("name", wParamDef.id).attr("min", wParamDef.min).attr("max", wParamDef.max).attr("step", wParamDef.step).attr("value", wParamDef.value);
+    let valueDisplay = sliderGrid.append("span").attr("id", `${wParamDef.id}Value`).attr("class", "slider-value").text(parseFloat(wParamDef.value).toFixed(1));
+    slider.on("input", handleSliderInput);
+
+    // *** Initial bias (b0) remains 0 ***
+    const initialB = 0;
+    const bParamDef = { neuron: 0, type: 'b', id: 'B0', label: 'b0', min: bMin, max: bMax, step: 0.1, value: initialB };
+    sliderParams.push(bParamDef);
+    paramValues.b[0] = initialB;
+
+    label = sliderGrid.append("label").attr("for", bParamDef.id).text(bParamDef.label + ":");
+    slider = sliderGrid.append("input").attr("type", "range").attr("id", bParamDef.id).attr("name", bParamDef.id).attr("min", bParamDef.min).attr("max", bParamDef.max).attr("step", bParamDef.step).attr("value", bParamDef.value);
+    valueDisplay = sliderGrid.append("span").attr("id", `${bParamDef.id}Value`).attr("class", "slider-value").text(parseFloat(bParamDef.value).toFixed(1));
+    slider.on("input", handleSliderInput);
+
+
+    // --- D3 Chart Setup ---
+    const baseWidth = 600; const baseHeight = 600;
+    const margin = {top: 50, right: 50, bottom: 50, left: 50},
+          width = baseWidth - margin.left - margin.right,
+          height = baseHeight - margin.top - margin.bottom;
+    const svg = d3.select("#chart").append("svg")
+        .attr("viewBox", `0 0 ${baseWidth} ${baseHeight}`)
+        .attr("preserveAspectRatio", "xMidYMid meet")
+      .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    svg.append("text").attr("class", "plot-title").attr("x", width / 2).attr("y", -margin.top / 2 + 5).attr("dy", "0.3em")
+        .text(`Single ReLU Neuron`);
+
+    const x = d3.scaleLinear().domain([-20, 20]).range([ 0, width ]);
+    const yMax = 20; const yMin = -20;
+    const y = d3.scaleLinear().domain([yMin, yMax]).range([ height, 0 ]);
+
+    // Draw Axes and Grid
+    svg.append("g").attr("class", "grid x-grid").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(10).tickSize(-height).tickFormat("")).selectAll(".tick line").attr("class", "grid-line");
+    svg.append("g").attr("class", "axis x-axis-labels").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(10));
+    svg.append("g").attr("class", "grid y-grid").call(d3.axisLeft(y).ticks(10).tickSize(-width).tickFormat("")).selectAll(".tick line").attr("class", "grid-line");
+    svg.append("g").attr("class", "axis y-axis-labels").call(d3.axisLeft(y).ticks(10));
+    svg.selectAll(".axis .domain").remove();
+
+    // Axis Labels
+    svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle").attr("x", width / 2).attr("y", height + margin.bottom - 15).text("input x");
+    svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle").attr("transform", "rotate(-90)").attr("y", -margin.left + 15).attr("x", -height / 2)
+        .text("y = ReLU(w0*x+b0)");
+
+
+    // --- Calculation and Drawing ---
+    const numPoints = 200;
+    function calculateData(params) { /* ... calculation logic unchanged ... */
+        const data = [];
+        const xDomain = x.domain();
+        const weight = params.w[0]; const bias = params.b[0];
+        for (let i = 0; i <= numPoints; i++) {
+            const xVal = xDomain[0] + (xDomain[1] - xDomain[0]) * i / numPoints;
+            const yVal = Math.max(weight * xVal + bias, 0);
+            data.push({x: xVal, y: yVal});
+        }
+        return data;
+    }
+
+    const lineGenerator = d3.line().x(d => x(d.x)).y(d => y(d.y)).curve(d3.curveLinear);
+    const path = svg.append("path").attr("class", "line");
+
+    // --- Update Logic ---
+    function redrawPlot(useTransition = false) {
+        currentData = calculateData(paramValues);
+        const lineUpdateSelection = path.datum(currentData);
+        if(useTransition) { lineUpdateSelection.transition().duration(50).ease(d3.easeLinear).attr("d", lineGenerator); }
+        else { lineUpdateSelection.attr("d", lineGenerator); }
+    }
+    function handleSliderInput() { /* ... unchanged ... */
+        sliderParams.forEach(p => {
+            const value = +d3.select(`#${p.id}`).property("value");
+            paramValues[p.type][p.neuron] = value;
+            d3.select(`#${p.id}Value`).text(value.toFixed(1));
+        });
+        redrawPlot(true);
+    }
+    // Randomize function randomizes both w0 and b0 uniformly
+    function randomizeParameters() { /* ... unchanged ... */
+        console.log("Randomizing ALL parameters (Uniform)...");
+        sliderParams.forEach(p => {
+            const newValue = uniformRandom(p.min, p.max);
+            d3.select(`#${p.id}`).property('value', newValue);
+            paramValues[p.type][p.neuron] = newValue;
+            d3.select(`#${p.id}Value`).text(newValue.toFixed(1));
+        });
+        redrawPlot(false);
+    }
+
+    // Add button listener
+    d3.select('#randomizeButton').on('click', randomizeParameters);
+
+    // Initial Plot Calculation and Draw
+    redrawPlot(false); // Initial draw uses w=1, B=0
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3 Plot: NN (4x3 Hidden) - Opacity Fix</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: sans-serif; margin: 0; background-color: #f0f0f0;
+            display: flex; justify-content: center; padding: 10px; height: 100vh;
+            box-sizing: border-box;
+        }
+        .main-container { display: flex; flex-direction: row; gap: 15px; width: 100%; max-width: 1400px; height: calc(100% - 20px); }
+        /* Container for 3D plot */
+        .chart-area-container {
+             flex: 3; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+             background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+             padding: 10px;
+        }
+        #plotTitle { /* Title above plot */
+             font-size: 16px; font-weight: bold; color: #333; text-anchor: middle; text-align: center; padding-bottom: 5px; flex-shrink: 0;
+        }
+        #plot3d { /* Container for the canvas */
+            flex-grow: 1; /* Take remaining space */
+            min-height: 0; /* Crucial for flex-grow */
+            position: relative; /* Needed for canvas absolute positioning */
+            overflow: hidden; /* Clip canvas if needed */
+            border-radius: 4px;
+        }
+        #plot3d canvas {
+             display: block; /* Remove extra space below canvas */
+             position: absolute;
+             top: 0; left: 0; width: 100%; height: 100%;
+        }
+
+        /* Controls Panel Styling */
+        .controls {
+            display: flex; flex-direction: column; gap: 10px; padding: 10px; background-color: #e9ecef;
+            border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex: 1; min-width: 250px;
+            max-width: 320px; overflow-y: hidden; max-height: 100%;
+        }
+        /* Style for the resolution control section */
+        .resolution-control {
+            display: grid;
+            grid-template-columns: auto 1fr auto; /* Label, Slider, Value */
+            gap: 8px;
+            align-items: center;
+            padding-bottom: 10px; /* Space before randomize button */
+            border-bottom: 1px solid #ccc; /* Separator */
+            margin-bottom: 10px; /* Space after separator */
+        }
+        .resolution-control label {
+             font-weight: bold; font-size: 0.9em; justify-self: start; /* Align left */
+             grid-column: 1 / 2; /* First column */
+        }
+         .resolution-control input[type="range"] {
+             width: 100%; cursor: pointer; margin: 0;
+             grid-column: 2 / 3; /* Second column */
+        }
+        .resolution-control .slider-value {
+            font-weight: bold; min-width: 35px; text-align: right; font-family: monospace;
+            background-color: #fff; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 0.8em;
+            grid-column: 3 / 4; /* Third column */
+        }
+
+        #randomizeButton {
+            padding: 8px 12px; background-color: #0d6efd; color: white; border: none; border-radius: 5px;
+            cursor: pointer; font-weight: bold; transition: background-color 0.2s; flex-shrink: 0;
+        }
+        #randomizeButton:hover { background-color: #0b5ed7; }
+        /* Grid for parameter sliders */
+        .slider-grid {
+             display: grid; grid-template-columns: auto 1fr auto; gap: 8px 8px;
+             align-items: center; align-content: start; overflow-y: auto; flex-grow: 1;
+             padding-right: 5px; /* Prevent scrollbar overlap */
+        }
+        .separator { grid-column: 1 / -1; height: 1px; background-color: #ccc; margin: 5px 0; font-size: 0.8em; text-align: center; color: #555; padding-top: 5px; border-top: 1px solid #ddd;}
+        .slider-grid label { font-weight: bold; justify-self: end; font-size: 0.8em; font-family: monospace; padding-right: 5px;}
+        .slider-grid input[type="range"] { width: 100%; cursor: pointer; margin: 0; }
+        .slider-grid .slider-value {
+            font-weight: bold; min-width: 40px; text-align: right; font-family: monospace;
+            background-color: #fff; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 0.8em;
+        }
+        .description {
+            /* font-family: 'Fira Code', monospace; */
+            font-size: 20px;
+            color: #333;
+            /* text-align: center; */
+            padding: 20px;
+            background-color: #d4d1d1a8;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 1300px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="chart-area-container">
+        <div id="plotTitle">NN with 4 layers x 3 neurons</div>
+        <div id="plot3d"></div>
+        <div class="description">Deeper network => deeper folds.</div>
+        </div>
+    <div class="controls">
+        <div class="resolution-control">
+            <label for="segmentsSlider">Resolution:</label>
+            <input type="range" id="segmentsSlider" name="segmentsSlider" min="64" max="512" step="1" value="128">
+            <span id="segmentsValue" class="slider-value">128</span>
+        </div>
+        <button id="randomizeButton" type="button">Randomize Weights</button>
+        <div class="slider-grid">
+             </div>
+    </div>
+</div>
+
+<script>
+    // === three.js Code ===
+
+    // --- Network Architecture ---
+    // --- CHANGE: Update network constants ---
+    const NUM_HIDDEN_LAYERS = 4;        // Was 2
+    const NEURONS_PER_HIDDEN_LAYER = 3; // Was 6
+    // --- Constants below depend on the above ---
+    const NUM_OUTPUT_NEURONS = 1;
+    const NUM_INPUTS = 2;
+    const NUM_PARAM_LAYERS = NUM_HIDDEN_LAYERS + 1; // Now 5 parameter layers (4 hidden + 1 output)
+
+    // --- Helper Functions ---
+    function uniformRandom(min, max) { return Math.random() * (max - min) + min; }
+    function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
+
+    // --- Parameter and Slider Setup ---
+    const controlsContainer = d3.select(".controls");
+    const sliderGrid = controlsContainer.select(".slider-grid");
+    const sliderParams = [];
+    const paramValues = { w: [], b: [] };
+    const wMin = -5, wMax = 5;
+    const bMin = -10, bMax = 10;
+
+    // Initialize parameter structure and define/generate sliders
+    // This loop dynamically adapts based on the constants above
+    let neuronsInPrevLayer = NUM_INPUTS;
+    for (let layerIdx = 0; layerIdx < NUM_PARAM_LAYERS; layerIdx++) {
+        const isHiddenLayer = layerIdx < NUM_HIDDEN_LAYERS;
+        const neuronsInCurrentLayer = isHiddenLayer ? NEURONS_PER_HIDDEN_LAYER : NUM_OUTPUT_NEURONS;
+        paramValues.w[layerIdx] = []; paramValues.b[layerIdx] = [];
+        sliderGrid.append('div').attr('class', 'separator').text(`Layer ${layerIdx}`); // Labels reflect new layers
+        for (let neuronIdx = 0; neuronIdx < neuronsInCurrentLayer; neuronIdx++) {
+            paramValues.w[layerIdx][neuronIdx] = [];
+            for (let prevNeuronIdx = 0; prevNeuronIdx < neuronsInPrevLayer; prevNeuronIdx++) {
+                const initialW = uniformRandom(wMin, wMax);
+                const paramId = `W${layerIdx}_${neuronIdx}_${prevNeuronIdx}`;
+                const paramLabel = `w${layerIdx}_${neuronIdx}${prevNeuronIdx}`; // Labels reflect new indices
+                const paramDef = { layer: layerIdx, neuron: neuronIdx, prevNeuron: prevNeuronIdx, type: 'w', id: paramId, label: paramLabel, min: wMin, max: wMax, step: 0.1, value: initialW };
+                sliderParams.push(paramDef);
+                paramValues.w[layerIdx][neuronIdx][prevNeuronIdx] = initialW;
+                const label = sliderGrid.append("label").attr("for", paramDef.id).text(paramDef.label + ":").attr('class', 'param-label');
+                const slider = sliderGrid.append("input").attr("type", "range").attr("id", paramDef.id).attr("name", paramDef.id).attr("min", paramDef.min).attr("max", paramDef.max).attr("step", paramDef.step).attr("value", paramDef.value).attr('class', 'param-slider');
+                const valueDisplay = sliderGrid.append("span").attr("id", `${paramDef.id}Value`).attr("class", "slider-value param-value").text(parseFloat(paramDef.value).toFixed(1));
+                slider.on("input", handleSliderInput);
+            }
+            const initialB = 0;
+            const paramId = `B${layerIdx}_${neuronIdx}`;
+            const paramLabel = `b${layerIdx}_${neuronIdx}`; // Labels reflect new indices
+            const paramDef = { layer: layerIdx, neuron: neuronIdx, type: 'b', id: paramId, label: paramLabel, min: bMin, max: bMax, step: 0.1, value: initialB };
+            sliderParams.push(paramDef);
+            paramValues.b[layerIdx][neuronIdx] = initialB;
+             const label = sliderGrid.append("label").attr("for", paramDef.id).text(paramDef.label + ":").attr('class', 'param-label');
+             const slider = sliderGrid.append("input").attr("type", "range").attr("id", paramDef.id).attr("name", paramDef.id).attr("min", paramDef.min).attr("max", paramDef.max).attr("step", paramDef.step).attr("value", paramDef.value).attr('class', 'param-slider');
+             const valueDisplay = sliderGrid.append("span").attr("id", `${paramDef.id}Value`).attr("class", "slider-value param-value").text(parseFloat(paramDef.value).toFixed(1));
+             slider.on("input", handleSliderInput);
+        }
+        neuronsInPrevLayer = neuronsInCurrentLayer;
+    }
+
+
+    // --- three.js Setup ---
+    let scene, camera, renderer, controls, mesh, geometry, material, wireframeMesh, wireframeMaterial;
+    const plotContainer = document.getElementById('plot3d');
+    const plotRange = { x0: [-20, 20], x1: [-20, 20], y: [-20, 20] };
+    let segments = 128; // Default resolution
+    const segmentsMin = 64;
+    const segmentsMax = 512;
+    const colorInterpolator = d3.interpolateViridis;
+
+    function init3D() {
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        // Camera
+        const containerWidth = plotContainer.clientWidth || 1;
+        const containerHeight = plotContainer.clientHeight || 1;
+        const aspectRatio = containerWidth / containerHeight;
+        camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
+        camera.position.set(0, (plotRange.y[0] + plotRange.y[1]) / 2 + 30, 35);
+        camera.lookAt(0, (plotRange.y[0] + plotRange.y[1]) / 2, 0);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(containerWidth, containerHeight);
+        plotContainer.appendChild(renderer.domElement);
+
+        // Materials
+        material = new THREE.MeshPhongMaterial({
+            vertexColors: true,
+            shininess: 10,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9
+        });
+        wireframeMaterial = new THREE.MeshBasicMaterial({
+            color: 0xaaaaaa,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.15
+        });
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.6); scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 0.5).normalize(); scene.add(directionalLight);
+
+        // Axes Helper
+        const axesHelper = new THREE.AxesHelper(30); scene.add(axesHelper);
+
+        // Orbit Controls
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, (plotRange.y[0] + plotRange.y[1]) / 2, 0);
+        controls.update();
+
+        // Create Initial Mesh and Wireframe
+        createOrUpdateMesh();
+
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize, false);
+
+        // Setup Resolution Slider
+        const segmentsSlider = d3.select('#segmentsSlider');
+        const segmentsValueDisplay = d3.select('#segmentsValue');
+        segmentsSlider.property('value', segments);
+        segmentsValueDisplay.text(segments);
+        segmentsSlider.on('input', handleSegmentsChange);
+
+        // Start animation loop
+        animate();
+    }
+
+    // --- Function to Create or Update Mesh and Wireframe ---
+    function createOrUpdateMesh() {
+        // Dispose old geometry and remove old meshes
+        if (mesh) scene.remove(mesh);
+        if (wireframeMesh) scene.remove(wireframeMesh);
+        if (geometry) geometry.dispose();
+
+        // Create New Geometry
+        const widthRange = plotRange.x0[1] - plotRange.x0[0];
+        const heightRange = plotRange.x1[1] - plotRange.x1[0];
+        geometry = new THREE.PlaneGeometry(widthRange, heightRange, segments, segments);
+
+        // Initialize Vertex Colors
+        const colors = [];
+        for (let i = 0; i < geometry.attributes.position.count; i++) {
+            colors.push(0, 0, 0);
+        }
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+        // Create New Meshes
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2;
+        scene.add(mesh);
+
+        wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
+        wireframeMesh.rotation.x = -Math.PI / 2;
+        scene.add(wireframeMesh);
+
+        // Update Surface Data
+        updateSurface();
+    }
+
+
+    function onWindowResize() {
+        if (!plotContainer || !camera || !renderer) return;
+        const containerWidth = plotContainer.clientWidth || 1;
+        const containerHeight = plotContainer.clientHeight || 1;
+        camera.aspect = containerWidth / containerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(containerWidth, containerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // --- Calculation (Dynamically uses constants) ---
+    function calculateDataPoint(x0, x1, params) {
+        let currentActivations = [x0, x1];
+        // Loop uses NUM_PARAM_LAYERS (now 5)
+        for (let layerIdx = 0; layerIdx < NUM_PARAM_LAYERS; layerIdx++) {
+            const weights_L = params.w[layerIdx];
+            const biases_L = params.b[layerIdx];
+            // neuronsInCurrentLayer determined dynamically
+            const neuronsInCurrentLayer = biases_L.length;
+            const neuronsInPrevLayer = currentActivations.length;
+            const nextActivations = [];
+            for (let neuronIdx = 0; neuronIdx < neuronsInCurrentLayer; neuronIdx++) {
+                let weightedSum = 0;
+                for (let prevNeuronIdx = 0; prevNeuronIdx < neuronsInPrevLayer; prevNeuronIdx++) {
+                    const weight = weights_L[neuronIdx][prevNeuronIdx];
+                     if (typeof weight !== 'undefined') { weightedSum += weight * currentActivations[prevNeuronIdx]; }
+                     else { console.error(`Undefined weight: L${layerIdx}, N${neuronIdx}, PrevN${prevNeuronIdx}`); }
+                }
+                const weightedMean = neuronsInPrevLayer > 0 ? weightedSum / neuronsInPrevLayer : 0;
+                let activation = weightedMean + biases_L[neuronIdx];
+                 // ReLU applied based on NUM_HIDDEN_LAYERS (now 4)
+                if (layerIdx < NUM_HIDDEN_LAYERS) { activation = Math.max(activation, 0); }
+                nextActivations.push(activation);
+            }
+            currentActivations = nextActivations;
+        }
+        return currentActivations[0]; // Final output neuron
+    }
+
+    // --- Update Surface (Unchanged) ---
+    function updateSurface() {
+        if (!geometry || !geometry.attributes.position) return;
+
+        const positions = geometry.attributes.position;
+        const colors = geometry.attributes.color;
+        const widthRange = plotRange.x0[1] - plotRange.x0[0];
+        const heightRange = plotRange.x1[1] - plotRange.x1[0];
+        const yRange = plotRange.y[1] - plotRange.y[0];
+        const yRangeSafe = yRange === 0 ? 1 : yRange;
+
+        for (let i = 0; i < positions.count; i++) {
+            const x0 = plotRange.x0[0] + ((positions.getX(i) + widthRange / 2) / widthRange) * (plotRange.x0[1] - plotRange.x0[0]);
+            const x1 = plotRange.x1[0] + ((positions.getY(i) + heightRange / 2) / heightRange) * (plotRange.x1[1] - plotRange.x1[0]);
+            const yVal = calculateDataPoint(x0, x1, paramValues); // Uses updated NN calculation
+            const clampedY = clamp(yVal, plotRange.y[0], plotRange.y[1]);
+            positions.setZ(i, clampedY);
+
+            const normalizedY = (clampedY - plotRange.y[0]) / yRangeSafe;
+            const colorString = colorInterpolator(normalizedY);
+            const color = new THREE.Color(colorString);
+            colors.setXYZ(i, color.r, color.g, color.b);
+        }
+        geometry.attributes.position.needsUpdate = true;
+        geometry.attributes.color.needsUpdate = true;
+        geometry.computeVertexNormals();
+    }
+
+
+    // --- Update Logic ---
+    function handleSliderInput() {
+        // This function reads the slider values and updates paramValues
+        // It doesn't need changing as the sliders were generated dynamically
+        sliderParams.forEach(p => {
+            const value = +d3.select(`#${p.id}`).property("value");
+            if (p.type === 'w') {
+                 if (!paramValues.w[p.layer][p.neuron]) paramValues.w[p.layer][p.neuron] = [];
+                 paramValues.w[p.layer][p.neuron][p.prevNeuron] = value;
+            } else { paramValues.b[p.layer][p.neuron] = value; }
+            d3.select(`#${p.id}Value`).text(value.toFixed(1));
+        });
+        updateSurface(); // Recalculate surface with new parameters
+    }
+
+    function handleSegmentsChange() {
+        const newValue = +d3.select(this).property("value");
+        segments = newValue;
+        d3.select('#segmentsValue').text(newValue);
+        createOrUpdateMesh(); // Recreate meshes with new resolution
+    }
+
+
+    // Randomizes weights and biases (Dynamically uses constants)
+    function randomizeParameters() {
+        console.log("Randomizing parameters (except final bias)...");
+        // Loop uses sliderParams, which was generated dynamically
+        sliderParams.forEach(p => {
+            let newValue;
+            // Check uses NUM_PARAM_LAYERS (now 5)
+            const isFinalBias = (p.layer === NUM_PARAM_LAYERS - 1 && p.type === 'b' && p.neuron === 0);
+            if (isFinalBias) { newValue = 0; }
+            else { newValue = uniformRandom(p.min, p.max); }
+
+            d3.select(`#${p.id}`).property('value', newValue);
+            // Updates paramValues dynamically
+            if (p.type === 'w') {
+                 if (!paramValues.w[p.layer][p.neuron]) paramValues.w[p.layer][p.neuron] = [];
+                 paramValues.w[p.layer][p.neuron][p.prevNeuron] = newValue;
+            } else { paramValues.b[p.layer][p.neuron] = newValue; }
+            d3.select(`#${p.id}Value`).text(newValue.toFixed(1));
+        });
+        updateSurface(); // Update surface with new random parameters
+    }
+
+    // Add button listener
+    d3.select('#randomizeButton').on('click', randomizeParameters);
+
+    // --- Initialize ---
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init3D);
+    } else {
+        init3D();
+    }
+
+</script>
+
+</body>
+</html>

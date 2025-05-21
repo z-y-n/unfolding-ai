@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3 Plot: NN (4x3 Hidden)</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Basic styling */
+        body {
+            font-family: sans-serif; margin-top: 10px; margin-bottom: 10px; background-color: #f9f9f9;
+            display: flex; justify-content: center; padding: 10px; height: calc(100vh - 40px);
+        }
+        .main-container { display: flex; flex-direction: row; gap: 20px; width: 95%; max-width: 1300px; height: 100%; }
+        .chart-area-container {
+             flex: 3; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+        }
+        .chart-container {
+            background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 10px; flex-grow: 1; min-height: 0;
+            display: flex; flex-direction: column;
+        }
+        #chart svg { display: block; width: 100%; height: 100%; max-width: 100%; }
+        .info-display {
+            font-family: monospace; text-align: center; padding: 5px; background-color: #eee;
+            border-radius: 4px; font-size: 0.9em; color: #333; flex-shrink: 0;
+        }
+
+        .line { fill: none; stroke: #ffc107; stroke-width: 2.5px; }
+        .knee-point { fill: red; stroke: darkred; stroke-width: 0.5px; opacity: 0.6; }
+        .target-point { fill: #87ceeb; stroke: #4682b4; stroke-width: 1px; opacity: 0.6; }
+        .axis path, .axis line { fill: none; stroke: #ccc; stroke-width: 1px; shape-rendering: crispEdges; }
+        .grid-line { stroke: #eee; stroke-opacity: 0.7; shape-rendering: crispEdges; }
+        .axis text { font-size: 10px; fill: #555; }
+        .axis-label { font-size: 12px; fill: #333; }
+        .plot-title { font-size: 16px; font-weight: bold; fill: #333; text-anchor: middle; }
+        .controls {
+            display: flex; flex-direction: column; gap: 10px; padding: 10px; background-color: #e9ecef;
+            border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex: 1; min-width: 250px;
+            max-width: 320px; overflow-y: hidden; max-height: 100%;
+        }
+        #randomizeButton {
+            padding: 8px 12px; background-color: #0d6efd; color: white; border: none; border-radius: 5px;
+            cursor: pointer; font-weight: bold; transition: background-color 0.2s; flex-shrink: 0;
+        }
+        #randomizeButton:hover { background-color: #0b5ed7; }
+        .slider-grid {
+             display: grid; grid-template-columns: auto 1fr auto; gap: 8px 8px;
+             align-items: center; align-content: start; overflow-y: auto; flex-grow: 1;
+        }
+        .separator { grid-column: 1 / -1; height: 1px; background-color: #ccc; margin: 5px 0; font-size: 0.8em; text-align: center; color: #555; padding-top: 5px; border-top: 1px solid #ddd;}
+        label { font-weight: bold; justify-self: end; font-size: 0.8em; font-family: monospace; }
+        input[type="range"] { width: 100%; cursor: pointer; margin: 0; }
+        .slider-value {
+            font-weight: bold; min-width: 40px; text-align: right; font-family: monospace;
+            background-color: #fff; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 0.8em;
+        }
+        .description {
+            /* font-family: 'Fira Code', monospace; */
+            font-size: 20px;
+            color: #333;
+            /* text-align: center; */
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 1300px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="chart-area-container">
+        <div id="chart" class="chart-container"></div>
+        <div id="mseDisplay" class="info-display">Loss (Mean Squared Error): 0.00</div>
+        <div id="kneeCountDisplay" class="info-display">Approx. Knee Points: 0</div>
+        <div class="description">Stacking more layers makes the folds sharper.</div>
+    </div>
+    <div class="controls">
+        <button id="randomizeButton" type="button">Randomize Parameters</button>
+        <div class="slider-grid">
+             </div>
+    </div>
+</div>
+
+<script>
+    // === D3 Code ===
+
+    // --- Network Architecture ---
+    const NUM_HIDDEN_LAYERS = 4;
+    const NEURONS_PER_HIDDEN_LAYER = 3;
+    const NUM_OUTPUT_NEURONS = 1;
+    const NUM_PARAM_LAYERS = NUM_HIDDEN_LAYERS + 1; // Total layers with parameters (0, 1, 2, 3, 4)
+
+    // --- Helper Functions ---
+    function uniformRandom(min, max) { return Math.random() * (max - min) + min; }
+    function clamp(value, min, max) { return Math.max(min, Math.min(value, max)); }
+    // Gaussian kept for reference
+    function boxMullerTransform() { let u1=0,u2=0; while(u1===0)u1=Math.random(); while(u2===0)u2=Math.random(); const R=Math.sqrt(-2.0*Math.log(u1)); const theta=2.0*Math.PI*u2; return {z0:R*Math.cos(theta),z1:R*Math.sin(theta)};}
+    let spareRandom=null; function gaussianRandom(mean,stdDev){ let val; if(spareRandom!==null){val=spareRandom;spareRandom=null;}else{const{z0,z1}=boxMullerTransform();val=z0;spareRandom=z1;} return mean+stdDev*val;}
+
+
+    // --- Generate Fixed Target Data Points ---
+    // ... (targetData generation unchanged) ...
+    const NUM_TARGET_POINTS = 30;
+    const TARGET_X_MIN = -20, TARGET_X_MAX = 20;
+    const targetData = [];
+    for (let i = 0; i < NUM_TARGET_POINTS; i++) { const x = uniformRandom(TARGET_X_MIN, TARGET_X_MAX); const yNoise = gaussianRandom(0, 1.5); const yBase = Math.sin(x / 4) * 10 + x / 3 + Math.cos(x/1.5)*2; const y = clamp(yBase + yNoise, -20, 20); targetData.push({ x: x, y: y }); }
+    targetData.sort((a, b) => a.x - b.x);
+
+
+    // --- Parameter and Slider Setup ---
+    // ... (Parameter definition loop - unchanged) ...
+    const controlsContainer = d3.select(".controls");
+    const sliderGrid = controlsContainer.select(".slider-grid");
+    const sliderParams = [];
+    const paramValues = { w: [], b: [] };
+    const wMin = -5, wMax = 5;
+    const bMin = -10, bMax = 10;
+    let neuronsInPrevLayer = 1;
+    for (let layerIdx = 0; layerIdx < NUM_PARAM_LAYERS; layerIdx++) {
+        const isHiddenLayer = layerIdx < NUM_HIDDEN_LAYERS;
+        const neuronsInCurrentLayer = isHiddenLayer ? NEURONS_PER_HIDDEN_LAYER : NUM_OUTPUT_NEURONS;
+        paramValues.w[layerIdx] = []; paramValues.b[layerIdx] = [];
+        sliderGrid.append('div').attr('class', 'separator').text(`Layer ${layerIdx}`);
+        for (let neuronIdx = 0; neuronIdx < neuronsInCurrentLayer; neuronIdx++) {
+            paramValues.w[layerIdx][neuronIdx] = [];
+            for (let prevNeuronIdx = 0; prevNeuronIdx < neuronsInPrevLayer; prevNeuronIdx++) {
+                const initialW = uniformRandom(wMin, wMax);
+                const paramId = `W${layerIdx}_${neuronIdx}_${prevNeuronIdx}`;
+                const paramLabel = `w${layerIdx}_${neuronIdx}${prevNeuronIdx}`;
+                const paramDef = { layer: layerIdx, neuron: neuronIdx, prevNeuron: prevNeuronIdx, type: 'w', id: paramId, label: paramLabel, min: wMin, max: wMax, step: 0.1, value: initialW };
+                sliderParams.push(paramDef);
+                paramValues.w[layerIdx][neuronIdx][prevNeuronIdx] = initialW;
+                const label = sliderGrid.append("label").attr("for", paramDef.id).text(paramDef.label + ":");
+                const slider = sliderGrid.append("input").attr("type", "range").attr("id", paramDef.id).attr("name", paramDef.id).attr("min", paramDef.min).attr("max", paramDef.max).attr("step", paramDef.step).attr("value", paramDef.value);
+                const valueDisplay = sliderGrid.append("span").attr("id", `${paramDef.id}Value`).attr("class", "slider-value").text(parseFloat(paramDef.value).toFixed(1));
+                slider.on("input", handleSliderInput);
+            }
+            const initialB = 0;
+            const paramId = `B${layerIdx}_${neuronIdx}`;
+            const paramLabel = `b${layerIdx}_${neuronIdx}`;
+            const paramDef = { layer: layerIdx, neuron: neuronIdx, type: 'b', id: paramId, label: paramLabel, min: bMin, max: bMax, step: 0.1, value: initialB };
+            sliderParams.push(paramDef);
+            paramValues.b[layerIdx][neuronIdx] = initialB;
+             const label = sliderGrid.append("label").attr("for", paramDef.id).text(paramDef.label + ":");
+             const slider = sliderGrid.append("input").attr("type", "range").attr("id", paramDef.id).attr("name", paramDef.id).attr("min", paramDef.min).attr("max", paramDef.max).attr("step", paramDef.step).attr("value", paramDef.value);
+             const valueDisplay = sliderGrid.append("span").attr("id", `${paramDef.id}Value`).attr("class", "slider-value").text(parseFloat(paramDef.value).toFixed(1));
+             slider.on("input", handleSliderInput);
+        }
+        neuronsInPrevLayer = neuronsInCurrentLayer;
+    }
+
+
+    // --- D3 Chart Setup ---
+    // ... (SVG, Title, Scales, Axes setup - unchanged) ...
+    const baseWidth = 600; const baseHeight = 600;
+    const margin = {top: 50, right: 50, bottom: 50, left: 50},
+          width = baseWidth - margin.left - margin.right,
+          height = baseHeight - margin.top - margin.bottom;
+    const svg = d3.select("#chart").append("svg")
+        .attr("viewBox", `0 0 ${baseWidth} ${baseHeight}`)
+        .attr("preserveAspectRatio", "xMidYMid meet")
+      .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    svg.append("text").attr("class", "plot-title").attr("x", width / 2).attr("y", -margin.top / 2 + 5).attr("dy", "0.3em")
+        .text(`NN with 4 layers x 3 neurons`);
+    const x = d3.scaleLinear().domain([-20, 20]).range([ 0, width ]);
+    const yMax = 20; const yMin = -20;
+    const y = d3.scaleLinear().domain([yMin, yMax]).range([ height, 0 ]);
+    svg.append("g").attr("class", "grid x-grid").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(10).tickSize(-height).tickFormat("")).selectAll(".tick line").attr("class", "grid-line");
+    svg.append("g").attr("class", "axis x-axis-labels").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(10));
+    svg.append("g").attr("class", "grid y-grid").call(d3.axisLeft(y).ticks(10).tickSize(-width).tickFormat("")).selectAll(".tick line").attr("class", "grid-line");
+    svg.append("g").attr("class", "axis y-axis-labels").call(d3.axisLeft(y).ticks(10));
+    svg.selectAll(".axis .domain").remove();
+    svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle").attr("x", width / 2).attr("y", height + margin.bottom - 15).text("input x");
+    svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle").attr("transform", "rotate(-90)").attr("y", -margin.left + 15).attr("x", -height / 2)
+        .text("output y");
+
+    // Draw Target Data Points (once)
+    // ... (targetData drawing unchanged) ...
+    const targetDataGroup = svg.append("g").attr("class", "target-data-group");
+    targetDataGroup.selectAll(".target-point").data(targetData).enter().append("circle").attr("class", "target-point").attr("cx", d => x(d.x)).attr("cy", d => y(d.y)).attr("r", 4);
+
+
+    // --- Calculation and Drawing ---
+    const numPoints = 200;
+    function calculateData(params) { /* ... calculation logic unchanged ... */
+        const data = [];
+        const xDomain = x.domain();
+        for (let i = 0; i <= numPoints; i++) {
+            const xVal = xDomain[0] + (xDomain[1] - xDomain[0]) * i / numPoints;
+            let currentActivations = [xVal];
+            for (let layerIdx = 0; layerIdx < NUM_PARAM_LAYERS; layerIdx++) {
+                const weights_L = params.w[layerIdx]; const biases_L = params.b[layerIdx];
+                const neuronsInCurrentLayer = biases_L.length; const neuronsInPrevLayer = currentActivations.length;
+                const nextActivations = [];
+                for (let neuronIdx = 0; neuronIdx < neuronsInCurrentLayer; neuronIdx++) {
+                    let weightedSum = 0;
+                    for (let prevNeuronIdx = 0; prevNeuronIdx < neuronsInPrevLayer; prevNeuronIdx++) {
+                        const weight = weights_L[neuronIdx][prevNeuronIdx];
+                         if (typeof weight !== 'undefined') { weightedSum += weight * currentActivations[prevNeuronIdx]; }
+                         else { console.error(`Undefined weight: L${layerIdx}, N${neuronIdx}, PrevN${prevNeuronIdx}`); }
+                    }
+                    const weightedMean = neuronsInPrevLayer > 0 ? weightedSum / neuronsInPrevLayer : 0;
+                    let activation = weightedMean + biases_L[neuronIdx];
+                    if (layerIdx < NUM_HIDDEN_LAYERS) { activation = Math.max(activation, 0); }
+                    nextActivations.push(activation);
+                }
+                currentActivations = nextActivations;
+            }
+            const yVal = currentActivations[0]; data.push({x: xVal, y: yVal});
+        }
+        return data;
+    }
+    function findKneePoints(data, slopeThreshold = 1e-2) { /* ... unchanged ... */
+        const kneePointsData = []; if (data.length < 3) return kneePointsData;
+        let prevSlope = (data[1].y - data[0].y) / (data[1].x - data[0].x); if (isNaN(prevSlope)) prevSlope = 0;
+        for (let i = 1; i < data.length - 1; i++) {
+            const dx = data[i+1].x - data[i].x; if (Math.abs(dx) < 1e-9) continue;
+            const currentSlope = (data[i+1].y - data[i].y) / dx; if (isNaN(currentSlope)) continue;
+            if (Math.abs(currentSlope - prevSlope) > slopeThreshold) { kneePointsData.push(data[i]); }
+            prevSlope = currentSlope;
+        }
+        return kneePointsData;
+    }
+    function interpolateY(xValue, sortedData) { /* ... unchanged ... */
+        const bisect = d3.bisector(d => d.x).left; const index = bisect(sortedData, xValue, 1, sortedData.length - 1);
+        const p0 = sortedData[index - 1]; const p1 = sortedData[index];
+        if (!p0 || !p1) { return p0 ? p0.y : (p1 ? p1.y : 0); }
+        const t = (xValue - p0.x) / (p1.x - p0.x); if (isNaN(t) || !isFinite(t)) return p0.y;
+        return p0.y * (1 - t) + p1.y * t;
+    }
+    function calculateMSE(networkOutputData, targetData) { /* ... unchanged ... */
+        if (!targetData || targetData.length === 0 || !networkOutputData || networkOutputData.length === 0) return 0;
+        let sumSquaredError = 0;
+        for (const targetPoint of targetData) {
+            const networkY = interpolateY(targetPoint.x, networkOutputData);
+            const error = networkY - targetPoint.y; sumSquaredError += error * error;
+        }
+        return sumSquaredError / targetData.length;
+    }
+
+    const lineGenerator = d3.line().x(d => x(d.x)).y(d => y(d.y)).curve(d3.curveBasis);
+    const path = svg.append("path").attr("class", "line");
+    const kneeGroup = svg.append("g").attr("class", "knee-points-group");
+
+
+    // --- Update Logic ---
+    function redrawPlot(useTransition = false) { /* ... unchanged ... */
+        currentData = calculateData(paramValues);
+        const kneePoints = findKneePoints(currentData);
+        const mse = calculateMSE(currentData, targetData);
+        d3.select('#mseDisplay').text(`Loss (Mean Squared Error): ${mse.toFixed(3)}`);
+        d3.select('#kneeCountDisplay').text(`Approx. Knee Points: ${Math.ceil(kneePoints.length/2)}`);
+        const lineUpdateSelection = path.datum(currentData);
+        if(useTransition) { lineUpdateSelection.transition().duration(50).ease(d3.easeLinear).attr("d", lineGenerator); }
+        else { lineUpdateSelection.attr("d", lineGenerator); }
+        kneeGroup.selectAll(".knee-point").data(kneePoints, d => `${d.x}-${d.y}`).join(
+            enter => enter.append("circle").attr("class", "knee-point").attr("r", 3).attr("cx", d => x(d.x)).attr("cy", d => y(d.y)).style("opacity", 0).transition().duration(100).style("opacity", 0.6),
+            update => update.transition().duration(50).attr("cx", d => x(d.x)).attr("cy", d => y(d.y)).style("opacity", 0.6),
+            exit => exit.transition().duration(100).style("opacity", 0).remove()
+        );
+    }
+    function handleSliderInput() { /* ... unchanged ... */
+        sliderParams.forEach(p => {
+            const value = +d3.select(`#${p.id}`).property("value");
+            if (p.type === 'w') { paramValues.w[p.layer][p.neuron][p.prevNeuron] = value; }
+            else { paramValues.b[p.layer][p.neuron] = value; }
+            d3.select(`#${p.id}Value`).text(value.toFixed(1));
+        });
+        redrawPlot(true);
+    }
+
+    // *** UPDATED: Randomize function skips final bias ***
+    function randomizeParameters() {
+        console.log("Randomizing parameters (except final bias)..."); // Updated log
+        sliderParams.forEach(p => {
+            let newValue;
+            // Check if it's the final bias (layer index = NUM_PARAM_LAYERS - 1, type = 'b', neuron index = 0)
+            // Note: NUM_PARAM_LAYERS is 5 (indices 0,1,2,3,4), so last layer index is 4
+            const isFinalBias = (p.layer === NUM_PARAM_LAYERS - 1 && p.type === 'b' && p.neuron === 0);
+
+            if (isFinalBias) {
+                newValue = 0; // Reset final bias to 0
+            } else {
+                // Randomize all other weights and biases uniformly
+                newValue = uniformRandom(p.min, p.max);
+            }
+
+            // Update slider input element
+            d3.select(`#${p.id}`).property('value', newValue);
+            // Update structured paramValues
+            if (p.type === 'w') {
+                paramValues.w[p.layer][p.neuron][p.prevNeuron] = newValue;
+            } else { // type === 'b'
+                paramValues.b[p.layer][p.neuron] = newValue;
+            }
+            // Update text display
+            d3.select(`#${p.id}Value`).text(newValue.toFixed(1));
+        });
+        redrawPlot(false); // Redraw plot with new values
+    }
+
+
+    // Add button listener
+    d3.select('#randomizeButton').on('click', randomizeParameters);
+
+    // Initial Plot Calculation and Draw
+    redrawPlot(false); // Initial draw uses uniform W, B=0
+
+</script>
+
+</body>
+</html>
