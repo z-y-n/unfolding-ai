@@ -1,4 +1,5 @@
-## Neural Networks: Origami in the Shape of Data
+## Neural Networks:
+## Origami in the Shape of Data
 
 
 --
