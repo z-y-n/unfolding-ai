@@ -16,7 +16,7 @@
 
 - Section 1: `x -> y`
 - Section 2: `(x0, x1) -> y`
-- Section 3: `(x0, x1, x2) -> (x0, x1, x2)`
+- Section 3: `[(x0, x1, x2)] -> (x0, x1, x2)`
 
 ---
 
@@ -147,20 +147,25 @@
 
 ---
 
-## 3D Autoregressive Model
+## ChatGPT as Curve Growth
 
-- 3D space modeling
-- Autoregressive behavior
-- [Add more key points here]
+- 3D embedding:
+    - a point is a word represented by 3 numbers
+    - A curve is a string of words
+- An LLM is used to "grow" the curve:
+    - `[(x0, x1, x2)] -> (x0, x1, x2)`
+    - The initial curve is your prompt
+    - curve is grown by iteratively adding 1 more point to the curve (autoregressive inference)
+    - The "grown" part of the curve is ChatGPT's response
+- The shape of the curve is controled by the creases of the NN "origami"
 
 [Play!](viz/12-autoregressive3d.html)
 
 --
 
-## Stochastic Autoregressive Model
+## ChatGPT as Stochastic Curve Growth
 
-- Stochastic behavior
-- Randomness in models
-- [Add more key points here]
+- Next word prediction is typically stochastic
+- The growth of the curve is also random
 
 [Play!](viz/13-stochastic-autoregressive3d.html) 
