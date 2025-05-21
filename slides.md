@@ -149,11 +149,10 @@
 
 ## ChatGPT as Curve Growth
 
-- 3D embedding:
-    - a point is a word represented by 3 numbers
+- 3D word embedding:
+    - a word is represented by a point (3 numbers)
     - A curve is a string of words
 - An LLM is used to "grow" the curve:
-    - `[(x0, x1, x2)] -> (x0, x1, x2)`
     - The initial curve is your prompt
     - curve is grown by iteratively adding 1 more point to the curve (autoregressive inference)
     - The "grown" part of the curve is ChatGPT's response
