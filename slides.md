@@ -1,5 +1,5 @@
 ## Neural Networks:
-## Origami in the Shape of Data
+## Origami Shaped by Data
 
 
 --
@@ -8,16 +8,22 @@
 
 - Models are used to predict things
 - They learn from data
-- Input (features): n numbers
-- Output (targets): m numbers
+- Input (features): `n` numbers
+- Output (targets): `m` numbers
 
 --
 
-## Setup & Simplifications
+## Setups
 
-- Section 1: `x -> y`
-- Section 2: `(x0, x1) -> y`
-- Section 3: `[(x0, x1, x2)] -> (x0, x1, x2)`
+- Config 1
+    - 1D Input -> 1D Output
+    - `x -> y`
+- Config 2
+    - 2D Input -> 1D Output
+    - `(x0, x1) -> y`
+- Config 3
+    - 3D Input Sequence -> 3D Output
+    - `[(x0, x1, x2)] -> (x0, x1, x2)`
 
 ---
 
@@ -52,7 +58,7 @@
 
 - More knobs to be tuned
 - More folds to be created
-- Still not flexible to output negative numbers
+- Only summing up positive neurons => output always positive
 
 [Play!](viz/02-4relus.html)
 
@@ -61,8 +67,8 @@
 ## Simplest NN: Perceptron
 
 
+- Output layer now tunable => outputs can be negative now
 - 4 hidden neurons, creates 4 folds
-- Aggregation now tunable: outputs can be negative now
 
 ![Perceptron of size 4](imgs/perceptron4.png)
 
@@ -73,7 +79,8 @@
 ## Widening the Perceptron
 
 - 12 hidden neurons: 12 folds
-- More ways to fold a line into the shape of data
+- More "budget" to smooth the curve
+- More freedom to fold a line into the shape of data
 - Widening the hidden layer to ∞
     => Universal Approximation Theorem
 
@@ -94,6 +101,7 @@
 
 - 4 hidden layers with 3 neurons each
 - More "expressive" yet also more "inhibited"
+    => ability to model finer and more localized features
 
 [Play!](viz/06-nn4x3.html)
 
@@ -104,6 +112,7 @@
 - 6 hidden layers with 2 neurons each
 - High chance of inhibition
 - High chance of sharp folds
+- Easier to fold into local and complex shapes
 
 [Play!](viz/07-nn6x2.html)
 
@@ -111,8 +120,9 @@
 
 ## 2D Input
 
-- NNs get to make creases on "a sheet of paper"
+- Still a perceptron, but with two inputs
 - 2 hidden layers with 6 neurons each
+- NNs get to make straight creases on "a sheet of paper"
 
 [Play!](viz/08-input2d-nn2x6.html)
 
@@ -121,18 +131,18 @@
 ## 2D Input with Deeper NN
 
 - 4 hidden layers with 3 neurons each
-- Similar effect of deepening
+- Similar effect of deepening: harder creases and finer wrinkles
 
 [Play!](viz/09-input2d-nn4x3.html)
 
 --
 
-## Toy Transformer
+## Toy Transformer (No ReLU)
 
 - Single transformer block
 - ReLU not needed since Attention is All You Need
 - 2D input treated as sequences
-- Hard creases -> smooth curls
+- Straight and hard creases -> smooth curls
 
 [Play!](viz/10-input2d-transformer1.html)
 
@@ -142,7 +152,8 @@
 
 - 5 Transformer blocks
 - Lots of knobs to tune
-- Very expressive yet inhibitive folds
+- Very expressive yet also very inhibitive folds
+- Can construct sparsely localized fine 2D structures
 
 [Play!](viz/11-input2d-transformer4.html)
 
@@ -157,7 +168,7 @@
     - The initial curve is your prompt
     - curve is grown by iteratively adding 1 more point to the curve (autoregressive inference)
     - The "grown" part of the curve is ChatGPT's response
-- The shape of the curve is controled by the creases of the NN "origami"
+- Curve's growth is guided by wrinkles on a high dimensional NN "origami"
 
 [Play!](viz/12-autoregressive3d.html)
 
